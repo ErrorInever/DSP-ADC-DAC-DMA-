@@ -1,11 +1,39 @@
 
 #include "main.h"
+#include "dma.h"
+#include "stm32f4xx_hal.h"
+#include "uart.h"
+#include "adc.h"
+#include "dac.h"
+#include <stdint.h>
 
 void SystemClock_Config(void);
 
 int main(void) {
   SystemClock_Config();
+  USART2_DMA_init();
+  DMA1_UART_RX_init(rx_buffer_0, rx_buffer_1, RX_BUF_SIZE);
+  DMA1_UART_TX_init();
+  USART2_DMA_Printf("DMA TX enable %d\r\n", 1);
+
+  DMA2_ADC_init();
+  ADC2_init();
+  DAC1_init();
+
   while (1) {
+    uint16_t raw_val = adc_val;
+
+    // send to DAC
+    DAC1_set(raw_val);
+
+    float voltage = (raw_val * 3.3f) / 4095.0f;
+    USART2_DMA_Printf("ADC In: %d | Out: %.2f V\r\n", raw_val, voltage);
+
+    if (DMA2->LISR & DMA_LISR_TEIF0) {
+      USART2_DMA_Printf("DMA Transfer Error!\n");
+    }
+
+    HAL_Delay(500);
   }
 }
 
